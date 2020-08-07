@@ -1,4 +1,4 @@
-import {useState, useMemo} from 'react';
+import {useState, useMemo, useRef} from 'react';
 
 /*
  * A SpanManager that manages the state of spans (parts of a file that compare50 identifies).
@@ -160,10 +160,10 @@ class SpanManager {
         return this._ignoredRegionMap.getSpan(region) !== null;
     }
 
-    selectedGroupIndex() {
+    selectedGroupId() {
         for (let span of this.spans) {
             if (this._spanStates[span.id] === Span.STATES.SELECTED || this._spanStates[span.id] === Span.STATES.HIGHLIGHTED) {
-                return span.groupId + 1;
+                return span.groupId;
             }
         }
         return 0;
@@ -174,20 +174,19 @@ class SpanManager {
     }
 
     _selectAdjacentGroup(direction) {
-        let groupIndex = this.selectedGroupIndex();
+        let groupId = this.selectedGroupId();
 
         // increment index
-        groupIndex += direction;
+        groupId += direction;
 
         // wrap around
-        if (groupIndex > this.nGroups()) {
-            groupIndex = 1;
+        if (groupId > this.nGroups()) {
+            groupId = 1;
         }
-        else if (groupIndex < 1) {
-            groupIndex = this.nGroups();
+        else if (groupId < 1) {
+            groupId = this.nGroups();
         }
 
-        const groupId = groupIndex - 1;
 
         for (let span of this.spans) {
             if (span.groupId === groupId) {
@@ -282,16 +281,17 @@ class Span {
 function useSpanManager(pass) {
     const initSpans = () => {
         const spans = [];
-        pass.groups.forEach((group, groupId) => {
-            group.forEach(span => {
-                spans.push(new Span(span.id, span.subId, span.fileId, groupId, span.start, span.end));
-            });
+        pass.spans.forEach(span => {
+            if (!span.ignored) {
+                const groupId = pass.groups.find(group => group.spans.includes(span.id)).id;
+                spans.push(new Span(span.id, span.subId, span.fileId, groupId, span.start, span.end, span.ignored));
+            }
         });
         return spans;
     }
 
     const initIgnoredSpans = () =>
-        pass.ignoredSpans.map(span => new Span(span.id, span.subId, span.fileId, null, span.start, span.end, true));
+        pass.spans.filter(span => span.ignored).map(span => new Span(span.id, span.subId, span.fileId, null, span.start, span.end, span.ignored));
 
     const initSpanStates = () => {
         const spanStates = spans.reduce((acc, span) => {
@@ -299,6 +299,15 @@ function useSpanManager(pass) {
             return acc;
         }, {});
 
+        return spanStates;
+    }
+
+    const unselectSpanStates = spanStates => {
+        Object.keys(spanStates).forEach(spanId => {
+            if (spanStates[spanId] === Span.STATES.SELECTED || spanStates[spanId] === Span.STATES.HIGHLIGHTED) {
+                spanStates[spanId] = Span.STATES.INACTIVE;
+            }
+        });
         return spanStates;
     }
 
@@ -313,10 +322,19 @@ function useSpanManager(pass) {
     // A map from pass.name => span.id => state
     const [allSpanStates, setAllSpanStates] = useState({});
 
+    // Keep track of the last pass
+    const passRef = useRef(pass);
+
     // Retrieve the spanStates from the map, otherwise create new
     let spanStates = allSpanStates[pass.pass]
     if (spanStates === undefined) {
         spanStates = initSpanStates();
+    }
+
+    // In case pass changed, unselect everything in the new pass
+    if (passRef.current !== pass) {
+        passRef.current = pass;
+        spanStates = unselectSpanStates(spanStates);
     }
 
     // Callback to set the spanStates for the current pass

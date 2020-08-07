@@ -1,6 +1,9 @@
 import React, {useRef, useEffect} from 'react';
+import ReactTooltip from 'react-tooltip';
 
 import Graph from '../home/graph';
+import API from '../api';
+import render50 from "./code/render50";
 
 import './matchview.css';
 import './sidebar.css';
@@ -17,42 +20,56 @@ function SideBar(props) {
     const updateGlobalState = newState => props.setGlobalState({...props.globalState, ...newState})
 
     return (
-        <div className="column-box">
-            <div className="row auto" style={style}>
-                <MatchNavigation
-                    current={props.globalState.currentMatch}
-                    n={props.globalState.nMatches}
-                    setMatch={match => updateGlobalState({"currentMatch": match})}
-                />
+        <React.Fragment>
+            <ReactTooltip place="right" type="dark" effect="solid" id="sidebar-tooltip"/>
+            <div className="column-box">
+                <div className="row auto" style={style}>
+                    <MatchNavigation
+                        current={props.globalState.currentMatch}
+                        n={props.globalState.nMatches}
+                        setMatch={match => updateGlobalState({"currentMatch": match})}
+                    />
+                </div>
+                <div className="row auto" style={style}>
+                    <PassNavigation
+                        passes={props.globalState.passes}
+                        currentPass={props.globalState.currentPass}
+                        setPass={pass => updateGlobalState({"currentPass": pass})}
+                    />
+                </div>
+                <div className="row auto" style={style}>
+                    <GroupNavigation
+                        spanManager={props.spanManager}
+                        setGroup={group => updateGlobalState({"currentGroup": group})}
+                    />
+                </div>
+                <div className="row auto" style={style}>
+                    <ConfigMenu
+                        softWrap={props.globalState.softWrap}
+                        setSoftWrap={softWrap => updateGlobalState({"softWrap": softWrap})}
+                        hideIgnored={props.globalState.hideIgnored}
+                        setHideIgnored={hideIgnored => updateGlobalState({"hideIgnored": hideIgnored})}
+                        showWhiteSpace={props.globalState.showWhiteSpace}
+                        setShowWhiteSpace={showWhiteSpace => updateGlobalState({"showWhiteSpace": showWhiteSpace})}
+                    />
+                </div>
+                <div className="row auto" style={style}>
+                    <ExportMenu/>
+                </div>
+                <div className="row fill" style={style}>
+                    <Graph graph={props.graphData} slider={false} sliderTip={false}/>
+                </div>
+                <div className="row auto" style={style}>
+                    <span
+                        className="tooltip-marker"
+                        data-tip="This graph shows any known links from the submissions in the match to archives."
+                        data-for="sidebar-tooltip"
+                    >
+                        ?
+                    </span>
+                </div>
             </div>
-            <div className="row auto" style={style}>
-                <PassNavigation
-                    passes={props.globalState.passes}
-                    currentPass={props.globalState.currentPass}
-                    setPass={pass => updateGlobalState({"currentPass": pass})}
-                />
-            </div>
-            <div className="row auto" style={style}>
-                <GroupNavigation
-                    spanManager={props.spanManager}
-                    setGroup={group => updateGlobalState({"currentGroup": group})}
-                />
-            </div>
-            <div className="row auto" style={style}>
-                <ConfigMenu
-                    softWrap={props.globalState.softWrap}
-                    setSoftWrap={softWrap => updateGlobalState({"softWrap": softWrap})}
-                    hideIgnored={props.globalState.hideIgnored}
-                    setHideIgnored={hideIgnored => updateGlobalState({"hideIgnored": hideIgnored})}
-                />
-            </div>
-            <div className="row auto" style={style}>
-                <ExportMenu/>
-            </div>
-            <div className="row fill" style={style}>
-                <Graph graph={props.graphData}/>
-            </div>
-        </div>
+        </React.Fragment>
     )
 }
 
@@ -68,7 +85,7 @@ function MatchNavigation(props) {
             }}>
                 {formatFraction(props.current, props.n)}
             </div>
-            <div className="btn-group horizontal">
+            <div className="btn-group horizontal" data-tip="Go to the previous and next match" data-for="sidebar-tooltip">
                 <span className="btn">
                     <button type="button" style={{"width":"50%"}}>{"<<"}</button>
                 </span>
@@ -113,7 +130,7 @@ function PassButton(props) {
     });
 
     return (
-        <span className="tooltip btn">
+        <span className="btn" data-tip={`Press ${props.index}`} data-for="sidebar-tooltip">
             <button
                 className={`monospace-text ${props.isSelected ? " active" : ""}`}
                 type="button"
@@ -123,7 +140,6 @@ function PassButton(props) {
             >
                 {props.pass.name}
             </button>
-            <ShortcutTooltip shortcut={props.index.toString()}/>
         </span>
     )
 }
@@ -136,11 +152,11 @@ function GroupNavigation(props) {
 
     useEffect(() => {
         const eventListener = (event) =>  {
-            if (event.key === "e") {
+            if (event.key.toLowerCase() === "e") {
                 event.preventDefault();
                 nextRef.current.click();
             }
-            else if (event.key === "q") {
+            else if (event.key.toLowerCase() === "q") {
                 event.preventDefault();
                 prevRef.current.click();
             }
@@ -158,9 +174,9 @@ function GroupNavigation(props) {
                 "paddingBottom": ".1em",
                 "color": "black"
             }}>
-                {formatFraction(props.spanManager.selectedGroupIndex(), props.spanManager.nGroups())}
+                {formatFraction(props.spanManager.selectedGroupId(), props.spanManager.nGroups())}
             </div>
-            <div className="tooltip btn-group horizontal" style={{"width":"100%"}}>
+            <div className="btn-group horizontal" style={{"width":"100%"}} data-tip={`Press Q E`} data-for="sidebar-tooltip" data-place="bottom">
                 <span className="btn">
                     <button
                         className="btn"
@@ -172,7 +188,6 @@ function GroupNavigation(props) {
                         &lt;
                     </button>
                 </span>
-                <ShortcutTooltip shortcut="q e" position="bottom"/>
                 <span className="btn">
                     <button
                         className="btn"
@@ -190,15 +205,41 @@ function GroupNavigation(props) {
 }
 
 
-function ExportMenu(props) {
-    return (
-        <div className="btn-group vertical">
-            <span className="btn tooltip">
-                <button type="button" style={{"width":"100%"}}>PDF</button>
-                <span className="tooltiptext">{"Export both submissions side-by-side as PDF"}</span>
+class ExportMenu extends React.Component {
+    constructor(props) {
+        super(props);
+    }
+
+    exportPDF() {
+        const match = API.getMatch();
+
+        // Reduce all files to one file
+        let sub_a = match.filesA().reduce((prev, next) => prev + '/** ' + next.name + " **/\n\n" + next.content + "\n\n\n", "");
+        let sub_b = match.filesB().reduce((prev, next) => prev + '/** ' + next.name + " **/\n\n" + next.content + "\n\n\n", "");
+
+        // Come up with a file extension to enable syntax highlighting
+        // (will only enable syntax highlighting if all the same language)
+        function ext(files) {
+            let e = null;
+            for (let i = 0; i < files.length; i++) {
+                if (e === null) e = files[i].language;
+                if (e !== files[i].language) return "";
+            }
+            return "." + e.toLowerCase();
+        }
+
+        render50(sub_a, sub_b, "submission_1" + ext(match.filesA()), "submission_2" + ext(match.filesB()));
+    }
+
+    render() {
+        return (
+        <div className="btn-group vertical" data-tip="Export both submissions side-by-side as PDF" data-for="sidebar-tooltip">
+            <span className="btn">
+                <button type="button" style={{"width":"100%"}} onClick={this.exportPDF}>PDF</button>
             </span>
         </div>
-    )
+        )
+    }
 }
 
 
@@ -208,20 +249,13 @@ function ConfigMenu(props) {
             <div style={{"marginBottom": ".25em"}}>
                 <Switch text="wrap" default={props.softWrap} setOption={props.setSoftWrap} tooltip="Soft Wrap long lines of code"/>
             </div>
-            <div>
+            <div style={{"marginBottom": ".25em"}}>
                 <Switch text="hide" default={props.hideIgnored} setOption={props.setHideIgnored} tooltip="Hide code that was not used in the comparison"/>
             </div>
+            <div>
+                <Switch text="&nbsp;WS&nbsp;" default={props.showWhiteSpace} setOption={props.setShowWhiteSpace} tooltip="Show leading whitespace"/>
+            </div>
         </React.Fragment>
-    )
-}
-
-
-function ShortcutTooltip(props) {
-    return (
-        <span className={`tooltiptext ${props.position}`}>
-            <span>Press </span>
-            <span className="monospace-text" style={{"fontWeight":"bold"}}>{props.shortcut}</span>
-        </span>
     )
 }
 
@@ -234,9 +268,8 @@ function Switch(props) {
                 <input type="checkbox" onChange={event => props.setOption(event.target.checked)} defaultChecked={props.default}/>
                 <span className="slider round"></span>
             </label>
-            <div className="tooltip" style={{"display": "table-cell", "verticalAlign": "middle", "paddingLeft": ".5em"}}>
+            <div style={{"display": "table-cell", "verticalAlign": "middle", "paddingLeft": ".5em"}} data-tip={props.tooltip} data-for="sidebar-tooltip">
                 <span className="monospace-text">{props.text}</span>
-                <span className="tooltiptext">{props.tooltip}</span>
             </div>
         </div>
     )
