@@ -59,9 +59,10 @@ function Side(props) {
                             key={file.name}
                             file={file}
                             spanManager={props.spanManager}
-                            percentage={props.pass.fileData.find(el => el.fileId === file.id).percentage}
+                            percentage={20}
                             softWrap={props.globalState.softWrap}
                             hideIgnored={props.globalState.hideIgnored}
+                            showWhiteSpace={props.globalState.showWhiteSpace}
                             updateFileVisibility={updateFileVisibility}
                             scrollTo={domElement => scrollTo(domElement, ref.current)}
                         />

@@ -15,7 +15,8 @@ function MatchView() {
         "passes": API.getPasses(),
         "nMatches": 50,
         "currentMatch": 1,
-        "softWrap": true
+        "softWrap": true,
+        "showWhiteSpace": false
     });
 
     const [match] = useState(API.getMatch());
@@ -33,7 +34,7 @@ function MatchView() {
                       <Logo height="2.5em"/>
                   </div>
                   <div className="row fill">
-                      <SideBar globalState={globalState} setGlobalState={setGlobalState} spanManager={spanManager} graphData={graphData}/>
+                      <SideBar globalState={globalState} setGlobalState={setGlobalState} match={match} spanManager={spanManager} graphData={graphData}/>
                   </div>
               </div>
           </div>
