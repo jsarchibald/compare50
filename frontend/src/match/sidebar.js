@@ -7,6 +7,7 @@ import render50 from "./code/render50";
 
 import './matchview.css';
 import './sidebar.css';
+import { arc } from 'd3';
 
 
 function SideBar(props) {
@@ -17,7 +18,33 @@ function SideBar(props) {
         "width": "90%"
     }
 
-    const updateGlobalState = newState => props.setGlobalState({...props.globalState, ...newState})
+    const updateGlobalState = newState => props.setGlobalState({...props.globalState, ...newState});
+
+    //console.log(props)
+    let this_page = ["frontend/src/home", "compare50/_renderer/static"]//[props.match.subA.name, props.match.subB.name];
+    let archive_routes = this_page.slice();
+
+    let graphData = {nodes: props.graphData.nodes, links: [], data: props.graphData.data};
+
+    if ("links" in props.graphData) {
+        props.graphData.links.forEach(link => {
+            // If this is the link between our featured submissions
+            if (this_page.includes(link.source) && this_page.includes(link.target)) {
+                graphData.links.push(link);
+            }
+
+            // If this is in our archive routes list (nodes that are related to our featured submissions through target or source)
+            else if (this_page.includes(link.source) || this_page.includes(link.target) || archive_routes.includes(link.source) || archive_routes.includes(link.target)) {
+                if (!archive_routes.includes(link.source)) archive_routes.push(link.source);
+                if (!archive_routes.includes(link.target)) archive_routes.push(link.target);
+            }
+            
+            // If this is an archive and we're somehow connected, include the link
+            if ((archive_routes.includes(link.source) && graphData.data[link.source].is_archive) || (archive_routes.includes(link.target) && graphData.data[link.target].is_archive)) {
+                graphData.links.push(link);
+            }
+       });
+    }
 
     return (
         <React.Fragment>
@@ -64,7 +91,7 @@ function SideBar(props) {
                 {props.globalState.isDataLoaded &&
                     <React.Fragment>
                         <div className="row fill" style={style}>
-                            <Graph graph={props.graphData} slider={false} sliderTip={false}/>
+                            <Graph graph={graphData} slider={false} sliderTip={false}/>
                         </div>
                         <div className="row auto" style={style}>
                             <span

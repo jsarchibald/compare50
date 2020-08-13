@@ -1,50 +1,63 @@
 {
-  "submissions": {
-    "1": {
-      "path": "../check50-ja/check50",
+  
+  "data": {
+    "../check50-ja/check50": {
       "is_archive": false
     },
-    "2": {
-      "path": "../check50/check50",
+    "../check50/check50": {
       "is_archive": false
     },
-    "3": {
-      "path": "../compare50-cs50/compare50/_renderer/static",
+    "../compare50-cs50/compare50/_renderer/static": {
+      "is_archive": true
+    },
+    "compare50/_renderer/static": {
       "is_archive": false
     },
-    "4": {
-      "path": "compare50/_renderer/static",
-      "is_archive": false
-    },
-    "5": {
-      "path": "frontend/src/home",
+    "frontend/src/home": {
       "is_archive": false
     }
   },
-  "matches": [
+  "links": [
     {
       "index": 0,
-      "source": 4,
-      "target": 3,
+      "source": "compare50/_renderer/static",
+      "target": "../compare50-cs50/compare50/_renderer/static",
       "value": 10
     },
     {
       "index": 1,
-      "source": 5,
-      "target": 4,
+      "source": "frontend/src/home",
+      "target": "compare50/_renderer/static",
       "value": 2.069944789491055
     },
     {
       "index": 2,
-      "source": 5,
-      "target": 3,
+      "source": "frontend/src/home",
+      "target": "../compare50-cs50/compare50/_renderer/static",
       "value": 2.069944789491055
     },
     {
       "index": 3,
-      "source": 2,
-      "target": 1,
+      "source": "../check50/check50",
+      "target": "../check50-ja/check50",
       "value": 1.6379459124980762
+    }
+  ],
+  "nodes": [
+    {
+      "id": "../check50-ja/check50"
+    },
+    {
+      "id": "../check50/check50"
+    },
+    {
+      "id": "../compare50-cs50/compare50/_renderer/static"
+    },
+    {
+      "id": "compare50/_renderer/static"
+    },
+    {
+      "id": "frontend/src/home"
     }
   ]
 }
