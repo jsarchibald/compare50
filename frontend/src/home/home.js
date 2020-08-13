@@ -5,9 +5,10 @@ import ReactTooltip from "react-tooltip";
 
 import '../index.css';
 import '../split.css';
-import Logo from '../match/logo';
-import Graph from './graph';
-import GraphFxns from './graph-d3';
+import API from '../api';
+import Logo from '../logo';
+import Graph from '../graph/graph';
+import GraphFxns from '../graph/graph-d3';
 
 var d3 = require("d3");
 
@@ -40,7 +41,7 @@ class MatchTableRow extends React.Component {
             source_style.backgroundColor = !hl.clicked && hl.id === this.props.link.source.id ? "#ccc" : undefined;
             target_style.backgroundColor = !hl.clicked && hl.id === this.props.link.target.id ? "#ccc" : undefined;
         }
-        
+
         if (this.props.selected !== null) {
             let sl = this.props.selected;
             source_style.fontWeight = sl.id === this.props.link.source.id ? "bold" : undefined;
@@ -104,7 +105,7 @@ class HomeView extends React.Component {
         super(props);
         this.state = {
             color: null,
-            graph: this.props.data,
+            graph: API.getGraph(),
             highlight: null,
             table_highlighted: null,
             table_selected: null,
@@ -163,7 +164,7 @@ class HomeView extends React.Component {
         }
     }
 
-    render() { 
+    render() {
         let sizes = this.state.graph.nodes.length > 50 ? [55, 45] : [60, 40];
 
         return (

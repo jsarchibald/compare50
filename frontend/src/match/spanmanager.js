@@ -22,15 +22,18 @@ class SpanManager {
     }
 
     activate(region) {
-        const groupId = this._regionMap.getGroupId(region);
+        const selectedSpan = this._getSpan(region);
+
+        const groupId = selectedSpan.groupId;
+
         if (groupId === null) {
             return;
         }
 
         const spanStates = this.spans.reduce((acc, span) => {
             // Don't overwrite a selected span
-            if (this.isSelected(span) || this.isHighlighted(span)) {
-                acc[span.id] = this._getState(span);
+            if (this._spanStates[span.id] === Span.STATES.SELECTED || this._spanStates[span.id] === Span.STATES.HIGHLIGHTED) {
+                acc[span.id] = this._spanStates[span.id];
             }
             // Set all spans in group to
             else if (span.groupId === groupId) {
@@ -48,19 +51,14 @@ class SpanManager {
     }
 
     select(region) {
-        const groupId = this._regionMap.getGroupId(region);
-        if (groupId === null) {
-            return;
-        }
+        // Grab the span that is selected
+        const selectedSpan = this._getSpan(region);
 
         // If this span was selected before, highlight the next span in the other sub
-        if (this.isHighlighted(region)) {
-            this._reselect(region);
+        if (this._spanStates[selectedSpan.id] === Span.STATES.HIGHLIGHTED) {
+            this._reselect(selectedSpan);
             return;
         }
-
-        // Grab the span that is selected
-        const selectedSpan = this._regionMap.getSpan(region);
 
         // Grab all spans in the same group
         const groupedSpans = this.spans.filter(span => span.groupId === selectedSpan.groupId);
@@ -94,10 +92,7 @@ class SpanManager {
         this._setSpanStates(spanStates);
     }
 
-    _reselect(region) {
-        // Find which span was reselected
-        const selectedSpan = this._regionMap.getSpan(region);
-
+    _reselect(selectedSpan) {
         // Grab all spans from the other submission in the same group
         const groupedSpans = this.spans.filter(span => span.groupId === selectedSpan.groupId);
 
@@ -133,60 +128,7 @@ class SpanManager {
     }
 
     selectNextGroup() {
-        this._selectAdjacentGroup(1);
-    }
-
-    selectPreviousGroup() {
-        this._selectAdjacentGroup(-1);
-    }
-
-    isHighlighted(region) {
-        return this._getState(region) === Span.STATES.HIGHLIGHTED;
-    }
-
-    isActive(region) {
-        return this._getState(region) === Span.STATES.ACTIVE;
-    }
-
-    isSelected(region) {
-        return this._getState(region) === Span.STATES.SELECTED;
-    }
-
-    isGrouped(region) {
-        return this._regionMap.getGroupId(region) !== null;
-    }
-
-    isIgnored(region) {
-        return this._ignoredRegionMap.getSpan(region) !== null;
-    }
-
-    selectedGroupId() {
-        for (let span of this.spans) {
-            if (this._spanStates[span.id] === Span.STATES.SELECTED || this._spanStates[span.id] === Span.STATES.HIGHLIGHTED) {
-                return span.groupId;
-            }
-        }
-        return 0;
-    }
-
-    nGroups() {
-        return this._regionMap.nGroups;
-    }
-
-    _selectAdjacentGroup(direction) {
-        let groupId = this.selectedGroupId();
-
-        // increment index
-        groupId += direction;
-
-        // wrap around
-        if (groupId > this.nGroups()) {
-            groupId = 1;
-        }
-        else if (groupId < 1) {
-            groupId = this.nGroups();
-        }
-
+        const groupId = this._regionMap.getNextGroupId(this._selectedGroupId())
 
         for (let span of this.spans) {
             if (span.groupId === groupId) {
@@ -196,14 +138,92 @@ class SpanManager {
         }
     }
 
-    _getState(region) {
-        const span = this._regionMap.getSpan(region);
+    selectPreviousGroup() {
+        const groupId = this._regionMap.getPreviousGroupId(this._selectedGroupId())
 
-        if (span === null) {
-            return Span.STATES.INACTIVE;
+        for (let span of this.spans) {
+            if (span.groupId === groupId) {
+                this.select(span);
+                return;
+            }
+        }
+    }
+
+    isFirstInHighlightedSpan(region) {
+        const spans = this._regionMap.getSpans(region);
+        const span = spans.find(span => this._spanStates[span.id] === Span.STATES.HIGHLIGHTED);
+        if (span === undefined) {
+            return false;
+        }
+        return span.start === region.start;
+    }
+
+    isHighlighted(region) {
+        return this._isState(region, Span.STATES.HIGHLIGHTED);
+    }
+
+    isActive(region) {
+        return this._isState(region, Span.STATES.ACTIVE);
+    }
+
+    isSelected(region) {
+        return this._isState(region, Span.STATES.SELECTED);
+    }
+
+    isGrouped(region) {
+        const span = this._getSpan(region);
+        return span !== undefined && span.groupId !== null;
+    }
+
+    isIgnored(region) {
+        return this._ignoredRegionMap.getSpans(region).length !== 0;
+    }
+
+    selectedGroupIndex() {
+        return this._regionMap.getGroupIndex(this._selectedGroupId());
+    }
+
+    nGroups() {
+        return this._regionMap.nGroups;
+    }
+
+    highlightedSpans() {
+        return this.spans.filter(span => this._spanStates[span.id] === Span.STATES.HIGHLIGHTED);
+    }
+
+    _getSpan(region) {
+        // If the region is already a span, use that
+        if (region instanceof Span) {
+            return region;
         }
 
-        return this._spanStates[span.id];
+        const spans = this._regionMap.getSpans(region)
+
+        if (spans.length === 0) {
+            return;
+        }
+
+        let largestSpan = spans[0];
+        spans.forEach(span => {
+            if (span.end - span.start > largestSpan.end - largestSpan.start) {
+                largestSpan = span;
+            }
+        });
+        return largestSpan;
+    }
+
+    _selectedGroupId() {
+        for (let span of this.spans) {
+            if (this._spanStates[span.id] === Span.STATES.SELECTED || this._spanStates[span.id] === Span.STATES.HIGHLIGHTED) {
+                return span.groupId;
+            }
+        }
+        return -1;
+    }
+
+    _isState(region, state) {
+        const spans = this._regionMap.getSpans(region);
+        return spans.some(span => this._spanStates[span.id] === state);
     }
 }
 
@@ -216,40 +236,59 @@ class RegionMap {
         // Memoization map, maps a this._key() to a span
         this._map = {};
 
-        this.nGroups = new Set(this.spans.map(span => span.groupId)).size;
+        this.groupIds = [];
+        this.spans.forEach(span => {
+            if (!this.groupIds.includes(span.groupId)) {
+                this.groupIds.push(span.groupId);
+            }
+        })
+        this.nGroups = this.groupIds.length;
     }
 
-    getSpan(region) {
+    getSpans(region) {
         const key = this._key(region);
 
-        // Get span from memory if possible
+        // Get spans from memory if possible
         if (this._map[key] !== undefined) {
             return this._map[key];
         }
 
-        let largestSpan = null;
-
-        this.spans.forEach(span => {
-            // span is from the same file, and starts and finishes before region
-            const contains = span.fileId === region.fileId && span.start <= region.start && span.end >= region.end;
-
-            // The largest span takes priority
-            const isLargest = largestSpan === null || largestSpan.end - largestSpan.start < span.end - span.start;
-
-            if (contains && isLargest) {
-                largestSpan = span;
-            }
-        });
+        const spans = this.spans.filter(span => span.fileId === region.fileId && span.start <= region.start && span.end >= region.end);
 
         // Memoize span
-        this._map[key] = largestSpan;
+        this._map[key] = spans;
 
-        return largestSpan;
+        return spans;
     }
 
-    getGroupId(region, state) {
-        const span = this.getSpan(region);
-        return span !== null ? span.groupId : null;
+    getGroupIds(region) {
+        return this.getSpans(region).map(span => span.groupId);
+    }
+
+    getGroupIndex(groupId) {
+        return this.groupIds.indexOf(groupId);
+    }
+
+    getPreviousGroupId(groupId) {
+        let groupIndex = this.getGroupIndex(groupId);
+        groupIndex -= 1;
+
+        if (groupIndex < 0) {
+            groupIndex = this.nGroups - 1;
+        }
+
+        return this.groupIds[groupIndex];
+    }
+
+    getNextGroupId(groupId) {
+        let groupIndex = this.getGroupIndex(groupId);
+        groupIndex += 1;
+
+        if (groupIndex >= this.nGroups) {
+            groupIndex = 0;
+        }
+
+        return this.groupIds[groupIndex];
     }
 
     _key(region) {
@@ -278,7 +317,7 @@ class Span {
 }
 
 
-function useSpanManager(pass) {
+function useSpanManager(pass, match) {
     const initSpans = () => {
         const spans = [];
         pass.spans.forEach(span => {
@@ -287,7 +326,19 @@ function useSpanManager(pass) {
                 spans.push(new Span(span.id, span.subId, span.fileId, groupId, span.start, span.end, span.ignored));
             }
         });
-        return spans;
+
+        const fileIdsInOrder = match.filesA().map(file => file.id).concat(match.filesB().map(file => file.id));
+
+        return spans.sort((a, b) => {
+            const indexA = fileIdsInOrder.indexOf(a.fileId);
+            const indexB = fileIdsInOrder.indexOf(b.fileId);
+
+            if (indexA !== indexB) {
+                return indexA > indexB ? 1 : -1;
+            }
+
+            return a.start > b.start ? 1 : -1;
+        });
     }
 
     const initIgnoredSpans = () =>
@@ -313,6 +364,7 @@ function useSpanManager(pass) {
 
     // Memoize the (expensive) mapping from regions to spans on the selected pass
     const spans = useMemo(initSpans, [pass.name]);
+
     const regionMap = useMemo(() => new RegionMap(spans), [spans]);
 
     // Memoize the (expensive) mapping from regions to ignoredSpans on the selected pass

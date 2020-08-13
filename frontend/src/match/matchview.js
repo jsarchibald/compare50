@@ -2,7 +2,6 @@ import React, {useState} from 'react';
 
 import './matchview.css';
 import SideBar from './sidebar';
-import Logo from './logo';
 import SplitView from './code/splitview';
 
 import API from '../api';
@@ -10,36 +9,66 @@ import useSpanManager from './spanmanager';
 
 
 function MatchView() {
+    const getData = function() {
+        setGlobalState({
+            ...globalState,
+            ...{"isDataLoaded": null}
+        })
+
+        Promise.all([
+            API.getMatch(),
+            API.getGraph()
+        ])
+        .then(([match, graph]) => {
+            setGraph(graph);
+            setMatch(match);
+            setGlobalState({
+                ...globalState,
+                ...{"passes": match.passes,
+                    "currentPass": match.passes[0],
+                    "isDataLoaded": true
+                }
+            });
+        });
+    }
+
     const [globalState, setGlobalState] = useState({
-        "currentPass": API.getPasses()[0],
-        "passes": API.getPasses(),
+        "currentPass": {
+            "name": "",
+            "docs": "",
+            "score": "",
+            "spans": [],
+            "groups": []
+        },
+        "passes": [],
         "nMatches": 50,
         "currentMatch": 1,
         "softWrap": true,
-        "showWhiteSpace": false
+        "showWhiteSpace": false,
+        "isDataLoaded": false
     });
 
-    const [match] = useState(API.getMatch());
-    const [graphData] = useState(API.getGraph(match));
+    const [match, setMatch] = useState(API.placeHolderMatch());
 
-    const pass = match.getPass(globalState.currentPass);
+    const [graphData, setGraph] = useState({});
 
-    const spanManager = useSpanManager(pass);
+    if (globalState.isDataLoaded === false) {
+        getData();
+    }
+
+    const spanManager = useSpanManager(globalState.currentPass, match);
 
     return (
         <div className="row-box" style={{"height":"100vh"}}>
           <div className="row auto" style={{"width":"9em"}}>
               <div className="column-box" style={{"borderRight": "1px solid #a7adba"}}>
-                  <div className="row auto">
-                      <Logo height="2.5em"/>
-                  </div>
                   <div className="row fill">
                       <SideBar globalState={globalState} setGlobalState={setGlobalState} match={match} spanManager={spanManager} graphData={graphData}/>
                   </div>
               </div>
           </div>
           <div className="row fill">
-              <SplitView topHeight="2.5em" globalState={globalState} match={match} pass={pass} spanManager={spanManager}/>
+              <SplitView topHeight="2.5em" globalState={globalState} match={match} spanManager={spanManager}/>
           </div>
         </div>
     );

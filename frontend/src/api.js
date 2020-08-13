@@ -1,48 +1,71 @@
-// TODO conditionally import mock data
-import GRAPH_DATA from './spoofed_data/graph.json'
-import SUB_A from './spoofed_data/sub_a.json'
-import SUB_B from './spoofed_data/sub_b.json'
-import passStructure from './spoofed_data/pass_structure.json'
-import passText from './spoofed_data/pass_text.json'
-import passExact from './spoofed_data/pass_exact.json'
+import GRAPH_DATA from './mock_data/graph.json'
 
 window.GRAPH_DATA = GRAPH_DATA;
 
-// TODO this should be a build config
-const USE_MOCK_DATA = true;
+const IN_DEVELOPMENT = process.env.NODE_ENV === "development";
 
-if (USE_MOCK_DATA) {
-    window.SUB_A = SUB_A;
-    window.SUB_B = SUB_B;
-    window.PASSES = [passStructure, passText, passExact]
-}
 
 class API {
-    static getPasses() {
-        return window.PASSES
+    static placeHolderMatch() {
+        return new Match(
+            {
+                "name": "...",
+                "files": [],
+                "id": -1,
+                "isArchive": false
+            },
+            {
+                "name": "...",
+                "files": [],
+                "id": -2,
+                "isArchive": false
+            },
+            []
+        )
     }
 
-    static getMatch() {
-        return new Match();
+    static async getMatch() {
+        // In development use mock data
+        if (IN_DEVELOPMENT) {
+            return await Promise.all([
+                import('./mock_data/sub_a.json'),
+                import('./mock_data/sub_b.json'),
+                import('./mock_data/pass_structure.json'),
+                import('./mock_data/pass_text.json'),
+                import('./mock_data/pass_exact.json')
+            ])
+            .then(([subA, subB, passStructure, passText, passExact]) => {
+                return new Match(subA, subB, [passStructure, passText, passExact]);
+            });
+        }
+
+        // In production use static data attached to the window by compare50
+        return new Match(window.SUB_A, window.SUB_B, window.PASSES);
     }
 
-    static getGraph(match) {
+    static getGraph() {
         return window.GRAPH_DATA;
     }
 }
 
 
 class Match {
-    filesA() {
-        return window.SUB_A.files;
-    }
-
-    filesB() {
-        return window.SUB_B.files;
+    constructor(subA, subB, passes) {
+        this.subA = subA;
+        this.subB = subB;
+        this.passes = passes;
     }
 
     getPass(pass) {
-        return window.PASSES.find(p => p.name === pass.name);
+        return this.passes.find(p => p.name === pass.name);
+    }
+
+    filesA() {
+        return this.subA.files;
+    }
+
+    filesB() {
+        return this.subB.files;
     }
 }
 

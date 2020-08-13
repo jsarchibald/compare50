@@ -4,6 +4,21 @@ import createFragments from './fragmentslicer'
 import "../matchview.css"
 import "./file.css";
 
+// function useTraceUpdate(props) {
+//   const prev = useRef(props);
+//   useEffect(() => {
+//     const changedProps = Object.entries(props).reduce((ps, [k, v]) => {
+//       if (prev.current[k] !== v) {
+//         ps[k] = [prev.current[k], v];
+//       }
+//       return ps;
+//     }, {});
+//     if (Object.keys(changedProps).length > 0) {
+//       console.log('Changed props:', changedProps);
+//     }
+//     prev.current = props;
+//   });
+// }
 
 function File(props) {
     const [visibilityRef, entry] = useIntersect({
@@ -14,18 +29,19 @@ function File(props) {
         props.updateFileVisibility(props.file.name, entry.intersectionRatio);
     });
 
-    const fromFile = span => span.fileId === props.file.id;
-    const spans = props.spanManager.spans.filter(fromFile);
-    const ignoredSpans = props.spanManager.ignoredSpans.filter(fromFile);
-    const allSpans = spans.concat(ignoredSpans);
-
-    const fragments = useMemo(() => createFragments(props.file, allSpans), [props.file, allSpans]);
+    const fragments = useMemo(() => {
+        const fromFile = span => span.fileId === props.file.id;
+        const spans = props.spanManager.spans.filter(fromFile);
+        const ignoredSpans = props.spanManager.ignoredSpans.filter(fromFile);
+        const allSpans = spans.concat(ignoredSpans);
+        return createFragments(props.file, allSpans)
+    }, [props.file.id, props.spanManager.spans]);
 
     // Keep track of whether a line of code starts on a newline (necessary for line numbers through css)
     let onNewline = true;
 
     const fragmentElems = fragments.map((frag, i) => {
-        const id = `fragment_${props.file.id}_${i}`;
+        const id = `frag_${props.file.id}_${frag.start}`;
         const fragElem = <Fragment
                             key={id}
                             fragment={frag}
@@ -35,14 +51,16 @@ function File(props) {
                             hideIgnored={props.hideIgnored}
                             showWhiteSpace={props.showWhiteSpace}
                             scrollTo={props.scrollTo}
-                            spanManager={props.spanManager}/>
+                            spanManager={props.spanManager}
+                            interactionBlocked={props.interactionBlocked}
+        />
         onNewline = frag.text.endsWith("\n");
         return fragElem;
     });
 
     return (
         <>
-            <h4> {props.file.name} <span>({props.percentage}%)</span></h4>
+            <h4> {props.file.name} <span>{props.percentage.toFixed(0)}%</span></h4>
             <pre ref={visibilityRef} className={(props.softWrap ? "softwrap" : "") + " monospace-text"}>
                 {(fragmentElems)}
             </pre>
@@ -56,32 +74,35 @@ function Fragment(props) {
     const lines = props.fragment.text.split(/(?<=\n)/g);
 
     const ref = useRef(null);
-    const classNameRef = useRef("");
+
+    const isHighlighted = props.spanManager.isHighlighted(props.fragment);
 
     useEffect(() => {
-        // If this fragment was not highlighted before, but now it is, scroll to it
-        if (!classNameRef.current.includes("highlighted-span") && ref.current.className.includes("highlighted-span")) {
+        // If this fragment is highlighted, and it's the first in its span, scroll to it
+        if (isHighlighted && props.spanManager.isFirstInHighlightedSpan(props.fragment)) {
             props.scrollTo(ref.current);
         }
-
-        classNameRef.current = ref.current.className;
     })
 
     let className = getClassName(props.fragment, props.spanManager, props.hideIgnored);
+
+    const hasMouseOvers = !props.interactionBlocked && props.spanManager.isGrouped(props.fragment);
 
     return (
         <span
             ref={ref}
             className={className}
             key={props.id}
-            onMouseEnter={event => props.spanManager.activate(props.fragment)}
-            onMouseDown={event => {
+            onMouseEnter={hasMouseOvers ? event => props.spanManager.activate(props.fragment) : undefined}
+            onMouseDown={hasMouseOvers ? event => {
                 // Prevent text selection when clicking on highlighted fragments
                 if (props.spanManager.isHighlighted(props.fragment)) {
                     event.preventDefault();
                 }
-            }}
-            onMouseUp={event => props.spanManager.select(props.fragment)}
+            } : undefined}
+            onMouseUp={hasMouseOvers ? event => {
+                props.spanManager.select(props.fragment);
+            } : undefined}
         >
             {lines.map((line, lineIndex) => {
                 const onNewline = props.onNewline || lineIndex > 0

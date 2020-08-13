@@ -1,8 +1,8 @@
 import React, {useState, useRef, useEffect} from 'react';
 import ReactTooltip from 'react-tooltip';
 
-import Graph from '../home/graph';
-import API from '../api';
+import Graph from '../graph/graph';
+import Logo from '../logo';
 import render50 from "./code/render50";
 
 import './matchview.css';
@@ -23,6 +23,9 @@ function SideBar(props) {
         <React.Fragment>
             <ReactTooltip place="right" type="dark" effect="solid" id="sidebar-tooltip"/>
             <div className="column-box">
+                <div className="row auto">
+                    <Logo height="2.5em"/>
+                </div>
                 <div className="row auto" style={style}>
                     <MatchNavigation
                         current={props.globalState.currentMatch}
@@ -58,18 +61,22 @@ function SideBar(props) {
                         match={props.match}
                     />
                 </div>
-                <div className="row fill" style={style}>
-                    <Graph graph={props.graphData} slider={false} sliderTip={false}/>
-                </div>
-                <div className="row auto" style={style}>
-                    <span
-                        className="tooltip-marker"
-                        data-tip="This graph shows any known links from the submissions in the match to archives."
-                        data-for="sidebar-tooltip"
-                    >
-                        ?
-                    </span>
-                </div>
+                {props.globalState.isDataLoaded &&
+                    <React.Fragment>
+                        <div className="row fill" style={style}>
+                            <Graph graph={props.graphData} slider={false} sliderTip={false}/>
+                        </div>
+                        <div className="row auto" style={style}>
+                            <span
+                                className="tooltip-marker"
+                                data-tip="This graph shows any known links from the submissions in the match to archives."
+                                data-for="sidebar-tooltip"
+                            >
+                                ?
+                            </span>
+                        </div>
+                    </React.Fragment>
+                }
             </div>
         </React.Fragment>
     )
@@ -131,6 +138,11 @@ function PassButton(props) {
         return () => document.removeEventListener("keyup", eventListener);
     });
 
+    // https://github.com/wwayne/react-tooltip/issues/231
+    useEffect(() => {
+        ReactTooltip.rebuild();
+    }, []);
+
     return (
         <span className="btn" data-tip={`Press ${props.index}`} data-for="sidebar-tooltip">
             <button
@@ -176,7 +188,7 @@ function GroupNavigation(props) {
                 "paddingBottom": ".1em",
                 "color": "black"
             }}>
-                {formatFraction(props.spanManager.selectedGroupId(), props.spanManager.nGroups())}
+                {formatFraction(props.spanManager.selectedGroupIndex() + 1, props.spanManager.nGroups())}
             </div>
             <div className="btn-group horizontal" style={{"width":"100%"}} data-tip={`Press Q E`} data-for="sidebar-tooltip" data-place="bottom">
                 <span className="btn">
